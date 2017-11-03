@@ -8,7 +8,7 @@ import seaborn as sns
 from sklearn import mixture
 from sklearn.decomposition import PCA
 import pandas as pd
-import sys
+import sys,os
 
 color_iter = itertools.cycle(['navy', 'c', 'cornflowerblue', 'gold',
                               'darkorange'])
@@ -95,7 +95,7 @@ def get_spikes_times(spikes_path,times_path,stim_data=None):
 
     return spike_vec, spiketimes
 
-def gmm_bic(features):
+def gmm_bic(features,save_path):
     print '############################## STARTING GMM ##############################'
 
 
@@ -105,13 +105,13 @@ def gmm_bic(features):
 
     lowest_bic = np.infty
     bic = []
-    n_components_range = range(1, 10)
-    cv_types = ['spherical', 'tied', 'diag', 'full']
+    n_components_range = range(1, 20)
+    cv_types = ['full'] # 'spherical', 'tied', 'diag', 
     for cv_type in cv_types:
         for n_components in n_components_range:
             # Fit a Gaussian mixture with EM
             gmm = mixture.GaussianMixture(n_components=n_components,
-                                          covariance_type=cv_type,max_iter=1000)
+                                          covariance_type=cv_type,max_iter=10000)
             gmm.fit(features)
             bic.append(gmm.bic(features))
             if bic[-1] < lowest_bic:
@@ -170,12 +170,12 @@ def gmm_bic(features):
     plt.title('Selected GMM: full model, 2 components')
     plt.subplots_adjust(hspace=.35, bottom=.02)
     #plt.show()
-    plt.savefig('BIC_Results.pdf')
+    plt.savefig(save_path + '/BIC_Results.pdf')
 
 
     return Y_
 
-def plot_tetrode(spikes,cluster_assignments):
+def plot_tetrode(spikes,cluster_assignments,save_path):
     print '############################## PLOTTING CLUSTERS ##############################'
     clusters = range(cluster_assignments.clusters.max()+1)
 
@@ -247,7 +247,7 @@ def plot_tetrode(spikes,cluster_assignments):
 
         #fig.tight_layout()
         print '############################## Saving Waveform of Cluster %d  ##############################' % clust
-        fig.savefig('waveforms_cluster_' + str(clust) + '.pdf')
+        fig.savefig(save_path + '/waveforms_cluster_' + str(clust) + '.pdf')
 
 
 def errorfill(x, y, yerr, color=None, alpha_fill=0.3, ax=None):
@@ -264,6 +264,28 @@ def errorfill(x, y, yerr, color=None, alpha_fill=0.3, ax=None):
 
     ax.plot(x, y, color='k')
     ax.fill_between(x, ymax, ymin, color=color, alpha=alpha_fill)
+
+
+def run_sorting(spikes_path,times_path,stim_data,save_path=os.getcwd()):
+
+    spikes,spiketimes = get_spikes_times(spikes_path,times_path,stim_data)
+    
+
+    #if len(sys.argv) == 4:
+    print '############################## Running Dimensionality Reduction ##############################'
+    reduced_data = PCA(n_components=4).fit_transform(spikes.T)
+
+    cluster_results = gmm_bic(reduced_data,save_path)
+
+    # save cluster results with spike times:
+    d = dict(times = spiketimes/3e4,clusters=cluster_results)
+    cluster_assignments = pd.DataFrame.from_dict(d)
+    cluster_assignments.to_csv(save_path + '/cluster_assignments.csv')
+
+
+    ## plot cluster waveforms:
+    plot_tetrode(spikes,cluster_assignments,save_path)
+
 
 if __name__ == "__main__":
 
@@ -282,30 +304,8 @@ if __name__ == "__main__":
             stim_data = pd.read_csv(sys.argv[3])
     else:
         stim_data = None
-    spikes,spiketimes = get_spikes_times(spikes_path,times_path,stim_data)
-    
 
-    #if len(sys.argv) == 4:
-    print '############################## Running Dimensionality Reduction ##############################'
-    reduced_data = PCA(n_components=4).fit_transform(spikes.T)
-
-    cluster_results = gmm_bic(reduced_data)
-
-    # save cluster results with spike times:
-    d = dict(times = spiketimes/3e4,clusters=cluster_results)
-    cluster_assignments = pd.DataFrame.from_dict(d)
-    cluster_assignments.to_csv('cluster_assignments.csv')
-
-    #else:
-    #    cluster_path = sys.argv[4]
-    #    if cluster_path.find('csv') == -1:
-    #        cluster_assignments = pd.read_pickle(cluster_path)
-    #    else:
-    #        cluster_assignments = pd.read_csv(cluster_path)
-
-    ## plot cluster waveforms:
-    plot_tetrode(spikes,cluster_assignments)
-
+    run_sorting(spikes_path,times_path,stim_data)
 
 
 
