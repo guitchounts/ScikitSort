@@ -111,7 +111,7 @@ def gmm_bic(features,save_path):
         for n_components in n_components_range:
             # Fit a Gaussian mixture with EM
             gmm = mixture.GaussianMixture(n_components=n_components,
-                                          covariance_type=cv_type,max_iter=10000)
+                                          covariance_type=cv_type,max_iter=5000)
             gmm.fit(features)
             bic.append(gmm.bic(features))
             if bic[-1] < lowest_bic:
@@ -189,7 +189,7 @@ def plot_tetrode(spikes,cluster_assignments,save_path):
 
         fig = plt.figure(figsize=(20, 10)) 
 
-        gs = gridspec.GridSpec(3, 1, width_ratios=[1, 1, 1]) 
+        gs = gridspec.GridSpec(3, 1, height_ratios=[1, 1, 1]) 
         
         ################## PLOT the mean waveforms #######################
         ax1 = sns.set_style("white")
@@ -232,7 +232,7 @@ def plot_tetrode(spikes,cluster_assignments,save_path):
         clu_times = np.sort(clu_times)
         clu_isi = np.diff(clu_times)*1e3 ## convert from seconds to ms
 
-        n, bins, patches = plt.hist(clu_isi,bins=1000,range=[0.1,100],histtype='stepfilled')
+        n, bins, patches = plt.hist(clu_isi,bins=1000,range=[0.1,100],histtype='stepfilled',log=True)
         plt.setp(patches, 'facecolor', 'magenta', 'alpha', 0.5)
         plt.xscale('log')
         plt.xlim([0.1, 100])
